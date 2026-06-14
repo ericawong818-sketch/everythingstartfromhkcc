@@ -1,0 +1,155 @@
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { initializeApp } from 'firebase/app';
+import { getFirestore, doc, setDoc, deleteDoc } from 'firebase/firestore';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const auth = getAuth(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+const FRIENDS = ['米肥', '肥肥人', '慧慧豬'];
+const TIME_SLOTS = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'];
+
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(FRIENDS[0]);
+  const [viewYear, setViewYear] = useState(2026);
+  const [viewMonth, setViewMonth] = useState(5);
+  const [selectedDateStr, setSelectedDateStr] = useState('2026-06-14');
+  const [selectedSlots, setSelectedSlots] = useState([]);
+  const [bookings, setBookings] = useState(() => JSON.parse(localStorage.getItem('squash_bookings')) || {});
+
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) setUser(currentUser);
+      else signInAnonymously(auth).catch(() => {});
+    });
+    return () => unsubscribeAuth();
+  }, []);
+
+  const handleSave = async () => {
+    const key = `${selectedUser}_${selectedDateStr}`;
+    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'bookings', key);
+    let newBookings = { ...bookings };
+    
+    if (selectedSlots.length === 0) {
+      delete newBookings[key];
+      if (user) await deleteDoc(docRef).catch(() => {});
+    } else {
+      const sortedSlots = [...selectedSlots].sort((a, b) => a.localeCompare(b));
+      newBookings[key] = { name: selectedUser, date: selectedDateStr, slots: sortedSlots };
+      if (user) await setDoc(docRef, newBookings[key]).catch(() => {});
+    }
+    
+    setBookings(newBookings);
+    localStorage.setItem('squash_bookings', JSON.stringify(newBookings));
+    alert("設定已更新！");
+  };
+
+  const getDaysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
+  const getFirstDayOfMonth = (y, m) => new Date(y, m, 1).getDay();
+
+  const monthlyBookings = Object.values(bookings).filter(b => {
+    const [y, m] = b.date.split('-').map(Number);
+    return y === viewYear && m === viewMonth + 1;
+  }).sort((a, b) => a.date.localeCompare(b.date));
+
+  const groupedMonthly = monthlyBookings.reduce((acc, b) => {
+    if (!acc[b.date]) acc[b.date] = [];
+    acc[b.date].push(b);
+    return acc;
+  }, {});
+
+  return (
+    <div className="min-h-screen bg-black text-gray-200 p-4 font-sans flex justify-center">
+      <div className="bg-[#1a1a1a] w-full max-w-3xl rounded-2xl p-6 shadow-2xl border border-gray-800">
+        <h1 className="text-xl font-semibold mb-6 text-white text-center">壁球約戰系統</h1>
+
+        <div className="mb-8 bg-gray-900 p-4 rounded-xl">
+          <h2 className="text-sm text-gray-400 mb-4 font-bold flex items-center gap-2">
+            <Calendar size={16} /> {viewYear}年{viewMonth + 1}月總覽
+          </h2>
+          <div className="space-y-4 max-h-80 overflow-y-auto pr-2">
+            {Object.keys(groupedMonthly).length === 0 ? (
+              <p className="text-xs text-gray-600 text-center py-4">此月份暫無預約</p>
+            ) : (
+              Object.keys(groupedMonthly).map(date => (
+                <div key={date} className="border-b border-gray-800 pb-3">
+                  <div className="text-xs font-bold text-blue-400 mb-2">{date}</div>
+                  {groupedMonthly[date].map((b, i) => (
+                    <div key={i} className="flex items-center gap-3 mb-2">
+                      <span className="text-sm font-semibold text-gray-200 w-20 truncate">{b.name}</span>
+                      <div className="flex gap-1 flex-wrap">
+                        {TIME_SLOTS.map(slot => {
+                          const isSelected = b.slots.includes(slot);
+                          return (
+                            <div key={slot} className={`text-[10px] w-[34px] h-[24px] flex items-center justify-center rounded border ${isSelected ? 'bg-blue-600 text-white border-blue-500' : 'bg-gray-800 text-gray-500 border-gray-700'}`}>
+                              {slot}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div className="mb-8">
+          <label className="block text-sm text-gray-400 mb-2">選擇名字</label>
+          <div className="flex gap-2">
+            {FRIENDS.map(name => (
+              <button key={name} onClick={() => setSelectedUser(name)} className={`px-4 py-2 rounded-lg text-sm ${selectedUser === name ? 'bg-white text-black font-bold' : 'bg-gray-800'}`}>
+                {name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="bg-gray-900 p-4 rounded-xl">
+            <div className="flex justify-between items-center mb-4">
+              <button onClick={() => { if(viewMonth === 0) { setViewYear(viewYear-1); setViewMonth(11); } else setViewMonth(viewMonth-1); }}><ChevronLeft/></button>
+              <span>{viewYear}年 {viewMonth + 1}月</span>
+              <button onClick={() => { if(viewMonth === 11) { setViewYear(viewYear+1); setViewMonth(0); } else setViewMonth(viewMonth+1); }}><ChevronRight/></button>
+            </div>
+            <div className="grid grid-cols-7 gap-2 text-center text-xs text-gray-500 mb-2">
+              {['日','一','二','三','四','五','六'].map(d => <div key={d}>{d}</div>)}
+            </div>
+            <div className="grid grid-cols-7 gap-2">
+              {[...Array(getFirstDayOfMonth(viewYear, viewMonth)).fill(null), ...Array(getDaysInMonth(viewYear, viewMonth)).keys()].map((day, i) => {
+                if (day === null) return <div key={i} />;
+                const dateStr = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-${String(day+1).padStart(2,'0')}`;
+                return (
+                  <button key={i} onClick={() => setSelectedDateStr(dateStr)} className={`p-2 rounded-full text-sm ${selectedDateStr === dateStr ? 'bg-white text-black' : 'text-gray-200'}`}>
+                    {day+1}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <h2 className="text-sm text-gray-400 mb-4">選擇時段</h2>
+            <div className="grid grid-cols-2 gap-2">
+              {TIME_SLOTS.map(slot => (
+                <button key={slot} onClick={() => setSelectedSlots(prev => prev.includes(slot) ? prev.filter(s => s !== slot) : [...prev, slot])} className={`py-2 px-3 rounded-md text-sm ${selectedSlots.includes(slot) ? 'bg-white text-black' : 'bg-gray-800'}`}>
+                  {slot}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8">
+           <button onClick={handleSave} className="w-full py-3 bg-blue-600 text-white rounded-lg font-bold">確認預約</button>
+        </div>
+      </div>
+    </div>
+  );
+}
