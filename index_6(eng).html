@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>are we free.</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 8px; }
+    </style>
+</head>
+<body class="bg-neutral-950 text-neutral-200 min-h-screen flex flex-col antialiased selection:bg-white selection:text-black">
+
+    <!-- HEADER -->
+    <header class="bg-neutral-950 border-b border-neutral-800 sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-5 sm:px-8 py-4 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 bg-white rounded-lg flex items-center justify-center text-black">
+                    <i class="fa-regular fa-calendar text-sm"></i>
+                </div>
+                <div class="leading-tight">
+                    <h1 class="text-lg font-extrabold tracking-tight lowercase text-white">are we free.</h1>
+                    <p class="text-xs text-neutral-500 font-medium">Find a time that works for everyone</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="connection-indicator-dot" class="inline-block rounded-full h-2 w-2 bg-neutral-600"></span>
+                <span id="connection-status-text" class="text-xs font-medium text-neutral-500">Connecting…</span>
+            </div>
+        </div>
+    </header>
+
+    <div id="loading-overlay" class="fixed inset-0 bg-neutral-950 z-50 flex flex-col items-center justify-center transition-opacity duration-500">
+        <div class="animate-spin rounded-full h-10 w-10 border-2 border-neutral-800 border-t-white"></div>
+        <h2 class="text-sm font-semibold mt-5 text-white">Loading shared calendar…</h2>
+        <p class="text-xs text-neutral-500 mt-1">Syncing with the cloud</p>
+    </div>
+
+    <!-- MAIN -->
+    <main class="flex-grow max-w-6xl w-full mx-auto px-5 sm:px-8 py-7 flex flex-col gap-6">
+
+        <!-- WHO ARE YOU -->
+        <section class="bg-neutral-900 rounded-2xl border border-neutral-800 p-5">
+            <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-5">
+                <div>
+                    <h2 class="text-base font-bold text-white">Who are you?</h2>
+                    <p class="text-sm text-neutral-500 mt-0.5">Tap your name, then mark the hours you're free</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="openAddPlayerModal()" class="text-xs bg-white hover:bg-neutral-200 text-black px-3.5 py-2.5 rounded-lg font-semibold transition flex items-center gap-2">
+                        <i class="fa-solid fa-plus text-[10px]"></i> Add friend
+                    </button>
+                    <button onclick="openNicknameModal()" class="text-xs bg-transparent hover:bg-neutral-800 text-neutral-200 px-3.5 py-2.5 rounded-lg font-semibold transition flex items-center gap-2 border border-neutral-700">
+                        <i class="fa-solid fa-pen text-[10px]"></i> Edit names
+                    </button>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 gap-2.5" id="friend-selector-grid"></div>
+        </section>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- CALENDAR -->
+            <section class="lg:col-span-7 bg-neutral-900 rounded-2xl border border-neutral-800 p-5 sm:p-6 flex flex-col">
+                <div class="flex items-center justify-between mb-6">
+                    <button onclick="navigateMonth(-1)" class="w-9 h-9 rounded-lg hover:bg-neutral-800 text-neutral-400 transition border border-neutral-700 flex items-center justify-center active:scale-95">
+                        <i class="fa-solid fa-chevron-left text-xs"></i>
+                    </button>
+                    <h3 id="calendar-month-year" class="text-base font-bold text-white tracking-tight select-none">Loading…</h3>
+                    <button onclick="navigateMonth(1)" class="w-9 h-9 rounded-lg hover:bg-neutral-800 text-neutral-400 transition border border-neutral-700 flex items-center justify-center active:scale-95">
+                        <i class="fa-solid fa-chevron-right text-xs"></i>
+                    </button>
+                </div>
+                <div class="grid grid-cols-7 text-center text-[10px] font-semibold uppercase tracking-wider mb-2">
+                    <div class="py-1 text-red-500">Sun</div><div class="py-1 text-neutral-500">Mon</div><div class="py-1 text-neutral-500">Tue</div><div class="py-1 text-neutral-500">Wed</div><div class="py-1 text-neutral-500">Thu</div><div class="py-1 text-neutral-500">Fri</div><div class="py-1 text-neutral-500">Sat</div>
+                </div>
+                <div id="calendar-grid" class="grid grid-cols-7 gap-1.5 flex-grow min-h-[360px]"></div>
+            </section>
+
+            <!-- SIDEBAR -->
+            <aside class="lg:col-span-5 flex flex-col gap-6">
+
+                <!-- YOUR FREE HOURS -->
+                <div class="bg-neutral-900 rounded-2xl border border-neutral-800 p-6">
+                    <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                        <i class="fa-regular fa-clock text-neutral-500"></i> Your free hours
+                    </h4>
+                    <p id="time-panel-sub" class="text-xs text-neutral-500 mt-1 mb-4">Loading…</p>
+                    <div id="time-slot-grid" class="grid grid-cols-3 gap-2"></div>
+                </div>
+
+                <!-- EVERYONE / MONTH OVERVIEW -->
+                <div class="bg-neutral-900 text-white rounded-2xl border border-neutral-800 p-6">
+                    <h4 class="text-sm font-bold flex items-center gap-2 mb-4 text-white">
+                        Everyone · <span id="overview-title" class="text-neutral-500 font-medium">—</span>
+                    </h4>
+                    <div id="overview-list" class="space-y-2 max-h-[440px] overflow-y-auto custom-scrollbar pr-1"></div>
+                </div>
+            </aside>
+        </div>
+    </main>
+
+    <footer class="bg-neutral-950 border-t border-neutral-800 text-xs py-7 mt-10 text-center text-neutral-600">
+        <p>A shared calendar for friends · real-time sync</p>
+    </footer>
+
+    <!-- MODAL: EDIT NAMES -->
+    <div id="nickname-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 opacity-0 transition-opacity duration-200">
+        <div class="bg-neutral-900 border border-neutral-800 rounded-2xl shadow-xl w-full max-w-md transform scale-95 transition-transform duration-200 overflow-hidden flex flex-col max-h-[85vh]">
+            <div class="px-6 py-4 flex justify-between items-center border-b border-neutral-800">
+                <h3 class="text-base font-bold text-white">Edit names</h3>
+                <button onclick="closeNicknameModal()" class="text-neutral-500 hover:text-white transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="nickname-form" onsubmit="saveNicknames(event)" class="p-6 space-y-3 overflow-y-auto flex-grow">
+                <p class="text-xs text-neutral-500">Rename anyone in your group.</p>
+                <div class="space-y-2.5" id="nickname-inputs-container"></div>
+                <div class="pt-3 flex justify-end gap-2 sticky bottom-0 bg-neutral-900">
+                    <button type="button" onclick="closeNicknameModal()" class="px-4 py-2 text-neutral-400 hover:text-white font-semibold text-sm transition">Cancel</button>
+                    <button type="submit" class="bg-white hover:bg-neutral-200 text-black font-semibold text-sm px-5 py-2 rounded-lg transition">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD FRIEND -->
+    <div id="add-player-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 opacity-0 transition-opacity duration-200">
+        <div class="bg-neutral-900 border border-neutral-800 rounded-2xl shadow-xl w-full max-w-sm transform scale-95 transition-transform duration-200 overflow-hidden">
+            <div class="px-6 py-4 flex justify-between items-center border-b border-neutral-800">
+                <h3 class="text-base font-bold text-white">Add friend</h3>
+                <button onclick="closeAddPlayerModal()" class="text-neutral-500 hover:text-white transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="add-player-form" onsubmit="executeAddPlayer(event)" class="p-6 space-y-5">
+                <div>
+                    <label class="block text-xs font-semibold text-neutral-500 mb-2">Name</label>
+                    <input type="text" id="add-player-name-input" required maxlength="16" class="w-full bg-neutral-800 text-sm font-semibold text-white focus:outline-none focus:ring-2 focus:ring-white rounded-lg border border-neutral-700 px-4 py-3 placeholder:text-neutral-500" placeholder="Enter a name" autocomplete="off">
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" onclick="closeAddPlayerModal()" class="px-4 py-2 text-neutral-400 hover:text-white font-semibold text-sm transition">Cancel</button>
+                    <button type="submit" class="bg-white hover:bg-neutral-200 text-black font-semibold text-sm px-5 py-2 rounded-lg transition">Add</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: REMOVE -->
+    <div id="custom-confirm-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 opacity-0 transition-opacity duration-200">
+        <div class="bg-neutral-900 border border-neutral-800 rounded-2xl shadow-xl w-full max-w-sm transform scale-95 transition-transform duration-200 overflow-hidden">
+            <div class="px-6 py-5">
+                <h3 class="text-base font-bold text-white mb-2">Remove this person?</h3>
+                <p class="text-sm text-neutral-400 leading-relaxed">Remove <span id="confirm-delete-name" class="font-bold text-white"></span> from the group? Their marked free times will be cleared and can't be undone.</p>
+            </div>
+            <div class="px-6 py-4 bg-neutral-950 border-t border-neutral-800 flex justify-end gap-2">
+                <button onclick="closeConfirmModal()" class="px-4 py-2 text-neutral-400 hover:text-white font-semibold text-sm transition">Cancel</button>
+                <button onclick="executeDeletePlayer()" class="bg-red-600 hover:bg-red-700 text-white font-semibold text-sm px-5 py-2 rounded-lg transition">Remove</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-xs pointer-events-none"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, onSnapshot, collection, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        let db = null, auth = null, currentUser = null;
+        let appId = typeof __app_id !== 'undefined' ? __app_id : 'hangout-group-demo';
+
+        const TIME_SLOTS = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00','17:00','18:00','19:00','20:00'];
+        const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const WEEKDAYS_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+        const hkTimeStr = new Date().toLocaleString("en-US", { timeZone: "Asia/Hong_Kong" });
+        const todayDateObj = new Date(hkTimeStr);
+        const hkYear = todayDateObj.getFullYear();
+        const hkMonth = todayDateObj.getMonth();
+        const hkDay = todayDateObj.getDate();
+        const pad = n => String(n).padStart(2, '0');
+
+        let currentYearMonth = new Date(hkYear, hkMonth, 1);
+        let activeFriendIndex = null;
+        let selectedDateStr = `${hkYear}-${pad(hkMonth + 1)}-${pad(hkDay)}`;
+
+        let friendsNames = [];
+        let availabilityData = {};
+        let pendingDeleteIdx = null;
+
+        const publicHolidays2026 = {
+            "2026-01-01": "New Year's Day", "2026-02-17": "Lunar New Year", "2026-02-18": "Lunar New Year",
+            "2026-02-19": "Lunar New Year", "2026-04-03": "Good Friday", "2026-04-04": "Easter Saturday",
+            "2026-04-05": "Ching Ming", "2026-04-06": "Easter Monday", "2026-04-07": "Ching Ming (obs.)",
+            "2026-05-01": "Labour Day", "2026-05-24": "Buddha's Birthday", "2026-05-25": "Buddha's Birthday (obs.)",
+            "2026-06-19": "Dragon Boat", "2026-07-01": "HKSAR Day", "2026-09-26": "Mid-Autumn (obs.)",
+            "2026-10-01": "National Day", "2026-10-19": "Chung Yeung", "2026-12-25": "Christmas", "2026-12-26": "Boxing Day"
+        };
+
+        function getInitial(name) {
+            const arr = Array.from((name || '').trim());
+            return arr.length ? arr[0].toUpperCase() : '?';
+        }
+        // inverted=false -> black circle / white text (use on white surfaces)
+        // inverted=true  -> white circle / black text (use on dark surfaces)
+        window.getAvatarHTML = function(name, sizeClass = "w-9 h-9", textClass = "text-sm", inverted = false) {
+            const cls = inverted ? "bg-white text-neutral-900" : "bg-neutral-900 text-white";
+            return `<div class="${sizeClass} ${textClass} rounded-full flex items-center justify-center font-bold ${cls} select-none flex-shrink-0 leading-none">${getInitial(name)}</div>`;
+        }
+        function getFreeIndices(dateStr) {
+            const slots = availabilityData[dateStr] || {};
+            return Object.keys(slots).filter(k => Array.isArray(slots[k]) && slots[k].length).map(Number).sort((a, b) => a - b);
+        }
+        function isRedDate(ds) { return new Date(ds).getDay() === 0 || !!publicHolidays2026[ds]; }
+        function fmtDate(ds) {
+            const d = new Date(ds);
+            return `${WEEKDAYS_SHORT[d.getDay()]}, ${MONTHS_SHORT[parseInt(ds.split('-')[1]) - 1]} ${parseInt(ds.split('-')[2])}`;
+        }
+
+        async function initialize() {
+            try {
+                let firebaseConfig = null;
+                try { const module = await import("./firebaseconfig.js"); firebaseConfig = module.default; }
+                catch (e) { console.warn("firebaseconfig.js not found — falling back to local storage."); }
+                if (firebaseConfig && firebaseConfig.apiKey) {
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app); auth = getAuth(app);
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) await signInWithCustomToken(auth, __initial_auth_token);
+                    else await signInAnonymously(auth);
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) { currentUser = user; updateConnectionIndicator(true); startRealtimeSync(); }
+                        else { updateConnectionIndicator(false); showToast("Connection lost", "Couldn't sign in. Please try again.", "error"); }
+                    });
+                } else { setupLocalStorageFallback(); }
+            } catch (error) { console.error("Firebase init failed, using local storage: ", error); setupLocalStorageFallback(); }
+        }
+
+        function setupLocalStorageFallback() {
+            updateConnectionIndicator(false);
+            const savedNames = localStorage.getItem(`${appId}-names`);
+            friendsNames = savedNames ? JSON.parse(savedNames) : [];
+            const savedAvails = localStorage.getItem(`${appId}-avails`);
+            if (savedAvails) availabilityData = JSON.parse(savedAvails);
+            renderAll();
+            const overlay = document.getElementById('loading-overlay');
+            if (overlay) overlay.style.display = 'none';
+        }
+
+        function updateConnectionIndicator(connected) {
+            const dot = document.getElementById('connection-indicator-dot');
+            const text = document.getElementById('connection-status-text');
+            if (connected) {
+                dot.className = "inline-block rounded-full h-2 w-2 bg-white";
+                text.innerText = "Synced"; text.className = "text-xs font-medium text-neutral-400";
+            } else {
+                dot.className = "inline-block rounded-full h-2 w-2 bg-neutral-600";
+                text.innerText = "Offline · saved here"; text.className = "text-xs font-medium text-neutral-500";
+            }
+        }
+
+        function startRealtimeSync() {
+            if (!currentUser) return;
+            const settingsDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'friends');
+            onSnapshot(settingsDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    friendsNames = docSnap.data().names || [];
+                    if (activeFriendIndex !== null && activeFriendIndex >= friendsNames.length) activeFriendIndex = null;
+                    renderAll();
+                } else { setDoc(settingsDocRef, { names: friendsNames }).catch(e => console.error(e)); }
+            }, (error) => console.error("Settings sync error: ", error));
+
+            const availCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'availabilities');
+            onSnapshot(availCollectionRef, (querySnapshot) => {
+                const temp = {};
+                querySnapshot.forEach((d) => { const data = d.data(); if (data.date && data.slots) temp[data.date] = data.slots; });
+                availabilityData = temp;
+                renderCalendar(); renderTimePanel(); renderOverview();
+                const overlay = document.getElementById('loading-overlay');
+                if (overlay) { overlay.style.opacity = '0'; setTimeout(() => overlay.style.display = 'none', 500); }
+            }, (error) => console.error("Availability sync error: ", error));
+        }
+
+        function renderAll() { renderFriendSelectors(); renderNicknameInputs(); renderCalendar(); renderTimePanel(); renderOverview(); }
+
+        async function persistDate(dateStr) {
+            const slots = availabilityData[dateStr] || {};
+            const cleaned = {};
+            Object.keys(slots).forEach(k => { if (Array.isArray(slots[k]) && slots[k].length) cleaned[k] = slots[k]; });
+            if (Object.keys(cleaned).length === 0) delete availabilityData[dateStr]; else availabilityData[dateStr] = cleaned;
+            if (!db) { localStorage.setItem(`${appId}-avails`, JSON.stringify(availabilityData)); return; }
+            const ref = doc(db, 'artifacts', appId, 'public', 'data', 'availabilities', dateStr);
+            try {
+                if (Object.keys(cleaned).length === 0) await deleteDoc(ref);
+                else await setDoc(ref, { date: dateStr, slots: cleaned, updatedAt: new Date().toISOString() });
+            } catch (err) { console.error(err); showToast("Sync failed", "Couldn't save your times to the cloud.", "error"); }
+        }
+
+        window.selectDate = function(dateStr) { selectedDateStr = dateStr; renderCalendar(); renderTimePanel(); renderOverview(); };
+
+        window.toggleSlot = function(slot) {
+            if (activeFriendIndex === null) { showToast("Pick a name", "Choose who you are above before marking times.", "warning"); return; }
+            if (!availabilityData[selectedDateStr]) availabilityData[selectedDateStr] = {};
+            const key = String(activeFriendIndex);
+            const cur = Array.isArray(availabilityData[selectedDateStr][key]) ? [...availabilityData[selectedDateStr][key]] : [];
+            const at = cur.indexOf(slot);
+            if (at > -1) cur.splice(at, 1); else cur.push(slot);
+            cur.sort();
+            if (cur.length) availabilityData[selectedDateStr][key] = cur; else delete availabilityData[selectedDateStr][key];
+            renderCalendar(); renderTimePanel(); renderOverview();
+            persistDate(selectedDateStr);
+        };
+
+        function renderFriendSelectors() {
+            const container = document.getElementById('friend-selector-grid');
+            if (!container) return;
+            container.innerHTML = '';
+            if (friendsNames.length === 0) {
+                container.innerHTML = `<div class="col-span-full py-8 text-center"><p class="font-semibold text-neutral-300 text-sm">No one here yet</p><p class="text-xs mt-1 text-neutral-500">Tap “Add friend” to create a profile.</p></div>`;
+                return;
+            }
+            for (let i = 0; i < friendsNames.length; i++) {
+                const sel = activeFriendIndex === i;
+                const cls = sel ? 'border-white ring-1 ring-white bg-neutral-800' : 'border-neutral-800 hover:border-neutral-600 bg-neutral-800/40';
+                container.insertAdjacentHTML('beforeend', `
+                    <div onclick="setActiveFriend(${i})" class="relative group flex items-center gap-2.5 p-2.5 rounded-xl border transition-all duration-150 cursor-pointer ${cls}">
+                        ${window.getAvatarHTML(friendsNames[i], "w-9 h-9", "text-sm", true)}
+                        <span class="text-sm font-semibold text-white truncate flex-1">${friendsNames[i]}</span>
+                        ${sel ? '<i class="fa-solid fa-check text-white text-xs"></i>' : ''}
+                        <button onclick="event.stopPropagation(); requestDeletePlayer(${i})" class="absolute -top-1.5 -right-1.5 bg-white hover:bg-neutral-200 text-black rounded-full w-5 h-5 flex items-center justify-center text-[10px] transition hover:scale-110 opacity-100 sm:opacity-0 sm:group-hover:opacity-100" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+                    </div>`);
+            }
+        }
+
+        window.setActiveFriend = function(index) { activeFriendIndex = index; renderFriendSelectors(); renderTimePanel(); renderOverview(); };
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendar-grid');
+            const label = document.getElementById('calendar-month-year');
+            if (!grid || !label) return;
+            grid.innerHTML = '';
+            const year = currentYearMonth.getFullYear();
+            const month = currentYearMonth.getMonth();
+            label.innerText = `${MONTHS[month]} ${year}`;
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const prevMonthDays = new Date(year, month, 0).getDate();
+
+            for (let i = firstDay - 1; i >= 0; i--)
+                grid.insertAdjacentHTML('beforeend', `<div class="rounded-lg p-2 min-h-[72px] sm:min-h-[92px] text-xs text-neutral-700 select-none"><span>${prevMonthDays - i}</span></div>`);
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dateStr = `${year}-${pad(month + 1)}-${pad(day)}`;
+                const cellDate = new Date(year, month, day);
+                const dow = cellDate.getDay();
+                const isToday = year === hkYear && month === hkMonth && day === hkDay;
+                const isPast = cellDate < todayDateObj && !isToday;
+                const isSelected = dateStr === selectedDateStr;
+                const holiday = publicHolidays2026[dateStr];
+                const isRed = dow === 0 || !!holiday;
+
+                const freeIdx = getFreeIndices(dateStr);
+                const hasFree = freeIdx.length > 0;
+
+                let cellCls = "border border-neutral-800 hover:border-neutral-600";
+                if (hasFree) cellCls = "border border-neutral-700 bg-neutral-800/50 hover:border-neutral-500";
+                if (isSelected) cellCls = "border border-white ring-1 ring-white bg-neutral-800";
+
+                let numCls = "text-neutral-300";
+                if (isRed) numCls = "text-red-500 font-semibold";
+                else if (hasFree) numCls = "text-white font-semibold";
+                if (isToday) numCls = isRed ? "text-red-500 font-bold" : "text-white font-bold";
+
+                const todayPill = isToday ? `<span class="bg-white text-black text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide">Today</span>` : '';
+                const holidayHtml = holiday ? `<span class="text-red-400 block text-[9px] mt-0.5 truncate max-w-[80px]" title="${holiday}">${holiday}</span>` : '';
+
+                let avatarsHtml = '';
+                if (hasFree) {
+                    avatarsHtml = '<div class="flex flex-wrap gap-0.5 mt-1.5">';
+                    freeIdx.slice(0, 6).forEach(idx => { avatarsHtml += window.getAvatarHTML(friendsNames[idx] || '?', "w-4 h-4", "text-[8px]", true); });
+                    if (freeIdx.length > 6) avatarsHtml += `<span class="text-[9px] text-neutral-400 font-semibold self-center ml-0.5">+${freeIdx.length - 6}</span>`;
+                    avatarsHtml += '</div>';
+                }
+                const count = hasFree ? `<span class="text-[10px] text-neutral-400 font-semibold">${freeIdx.length}</span>` : '';
+
+                grid.insertAdjacentHTML('beforeend', `
+                    <div onclick="selectDate('${dateStr}')" class="cursor-pointer rounded-lg p-2 min-h-[72px] sm:min-h-[92px] flex flex-col transition-all duration-150 select-none ${cellCls} ${isPast ? 'opacity-40' : ''}">
+                        <div class="flex items-start justify-between">
+                            <div class="flex flex-col">
+                                <div class="flex items-center gap-1"><span class="text-sm ${numCls}">${day}</span>${todayPill}</div>
+                                ${holidayHtml}
+                            </div>
+                            ${count}
+                        </div>
+                        <div class="mt-auto">${avatarsHtml}</div>
+                    </div>`);
+            }
+        }
+
+        window.navigateMonth = function(direction) { currentYearMonth.setMonth(currentYearMonth.getMonth() + direction); renderCalendar(); renderOverview(); };
+
+        function renderTimePanel() {
+            const sub = document.getElementById('time-panel-sub');
+            const grid = document.getElementById('time-slot-grid');
+            if (!grid || !sub) return;
+            const dateLabel = fmtDate(selectedDateStr);
+            const redCls = isRedDate(selectedDateStr) ? 'text-red-400' : 'text-neutral-200';
+            if (activeFriendIndex === null) {
+                sub.innerHTML = `<span class="${redCls} font-semibold">${dateLabel}</span>`;
+                grid.innerHTML = `<div class="col-span-3 text-center text-neutral-500 text-sm py-6 bg-neutral-800/40 rounded-lg border border-dashed border-neutral-700">Choose your name above to start</div>`;
+                return;
+            }
+            const name = friendsNames[activeFriendIndex] || 'friend';
+            sub.innerHTML = `<span class="${redCls} font-semibold">${dateLabel}</span> · as ${name}`;
+            const mySlots = (availabilityData[selectedDateStr] && availabilityData[selectedDateStr][String(activeFriendIndex)]) || [];
+            grid.innerHTML = '';
+            TIME_SLOTS.forEach(slot => {
+                const on = mySlots.includes(slot);
+                const cls = on ? 'bg-white text-black border-white font-semibold' : 'bg-transparent text-neutral-400 border-neutral-700 hover:bg-neutral-800';
+                grid.insertAdjacentHTML('beforeend', `<button type="button" onclick="toggleSlot('${slot}')" class="py-2 rounded-lg border text-sm transition active:scale-95 ${cls}">${slot}</button>`);
+            });
+        }
+
+        function renderOverview() {
+            const title = document.getElementById('overview-title');
+            const list = document.getElementById('overview-list');
+            if (!list) return;
+            const year = currentYearMonth.getFullYear();
+            const month = currentYearMonth.getMonth();
+            const prefix = `${year}-${pad(month + 1)}`;
+            if (title) title.innerText = `${MONTHS[month]} ${year}`;
+
+            const dates = Object.keys(availabilityData).filter(ds => ds.startsWith(prefix) && getFreeIndices(ds).length > 0).sort();
+            if (dates.length === 0) {
+                list.innerHTML = `<div class="text-neutral-500 text-sm py-3">No free time marked this month yet. Tap a day to start.</div>`;
+                return;
+            }
+            list.innerHTML = '';
+            dates.forEach(ds => {
+                const d = new Date(ds);
+                const dateLabel = `${MONTHS_SHORT[parseInt(ds.split('-')[1]) - 1]} ${parseInt(ds.split('-')[2])}`;
+                const weekday = WEEKDAYS_SHORT[d.getDay()];
+                const red = isRedDate(ds);
+                const slots = availabilityData[ds] || {};
+                const freeIdx = getFreeIndices(ds);
+                const isSelected = ds === selectedDateStr;
+
+                const counts = {};
+                TIME_SLOTS.forEach(s => counts[s] = 0);
+                freeIdx.forEach(idx => { (slots[String(idx)] || []).forEach(s => { if (counts[s] != null) counts[s]++; }); });
+                const maxCount = Math.max(...Object.values(counts));
+                let bestBadge = '';
+                if (maxCount >= 2) {
+                    const best = TIME_SLOTS.filter(s => counts[s] === maxCount);
+                    bestBadge = `<span class="text-[10px] font-bold text-neutral-900 bg-white px-2 py-0.5 rounded-full whitespace-nowrap">${maxCount} free · ${best.join(' ')}</span>`;
+                }
+
+                let rows = '';
+                freeIdx.forEach(idx => {
+                    const name = friendsNames[idx] || 'friend';
+                    const mySlots = slots[String(idx)] || [];
+                    let cells = '';
+                    TIME_SLOTS.forEach(s => {
+                        const on = mySlots.includes(s);
+                        cells += on
+                            ? `<span class="text-[9px] w-[26px] h-[19px] flex items-center justify-center rounded bg-white text-neutral-900 font-bold">${s.slice(0,2)}</span>`
+                            : `<span class="text-[9px] w-[26px] h-[19px] flex items-center justify-center rounded border border-neutral-700 text-neutral-500">${s.slice(0,2)}</span>`;
+                    });
+                    rows += `
+                        <div class="flex items-start gap-2 mb-1.5 last:mb-0">
+                            <div class="flex items-center gap-1.5 w-20 flex-shrink-0 pt-0.5">
+                                ${window.getAvatarHTML(name, "w-5 h-5", "text-[10px]", true)}
+                                <span class="text-[11px] font-semibold text-white truncate">${name}</span>
+                            </div>
+                            <div class="flex flex-wrap gap-1 flex-1">${cells}</div>
+                        </div>`;
+                });
+
+                list.insertAdjacentHTML('beforeend', `
+                    <div onclick="selectDate('${ds}')" class="cursor-pointer rounded-xl p-3 transition border ${isSelected ? 'bg-neutral-800 border-neutral-600' : 'bg-neutral-800/40 border-neutral-800 hover:bg-neutral-800/70'}">
+                        <div class="flex items-center justify-between gap-2 mb-2.5">
+                            <span class="text-sm font-bold ${red ? 'text-red-500' : 'text-white'}">${dateLabel} <span class="text-[11px] font-medium ${red ? 'text-red-400' : 'text-neutral-400'}">${weekday}</span></span>
+                            ${bestBadge}
+                        </div>
+                        ${rows}
+                    </div>`);
+            });
+        }
+
+        /* ----- Edit names ----- */
+        window.openNicknameModal = function() {
+            renderNicknameInputs();
+            const m = document.getElementById('nickname-modal');
+            m.classList.remove('hidden');
+            setTimeout(() => { m.classList.remove('opacity-0'); m.querySelector('.bg-neutral-900').classList.remove('scale-95'); }, 30);
+        };
+        window.closeNicknameModal = function() {
+            const m = document.getElementById('nickname-modal');
+            m.querySelector('.bg-neutral-900').classList.add('scale-95');
+            m.classList.add('opacity-0');
+            setTimeout(() => m.classList.add('hidden'), 200);
+        };
+        function renderNicknameInputs() {
+            const container = document.getElementById('nickname-inputs-container');
+            if (!container) return;
+            container.innerHTML = '';
+            if (friendsNames.length === 0) { container.innerHTML = `<p class="text-center text-neutral-500 text-sm py-6">No friends yet — add one first.</p>`; return; }
+            for (let i = 0; i < friendsNames.length; i++) {
+                container.insertAdjacentHTML('beforeend', `
+                    <div class="flex items-center gap-3 bg-neutral-800/50 p-3 rounded-xl border border-neutral-800">
+                        ${window.getAvatarHTML(friendsNames[i], "w-9 h-9", "text-sm", true)}
+                        <input type="text" value="${friendsNames[i]}" required class="friend-name-input bg-transparent text-sm font-semibold text-white focus:outline-none w-full" placeholder="Name" autocomplete="off">
+                    </div>`);
+            }
+        }
+        window.saveNicknames = async function(event) {
+            event.preventDefault();
+            const inputs = document.querySelectorAll('.friend-name-input');
+            const newNames = [];
+            inputs.forEach(inp => newNames.push(inp.value.trim() || 'friend'));
+            friendsNames = newNames;
+            renderAll(); closeNicknameModal();
+            if (!db) { localStorage.setItem(`${appId}-names`, JSON.stringify(newNames)); showToast("Saved", "Names saved on this device.", "success"); return; }
+            try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'friends'), { names: newNames }); showToast("Saved", "Names updated for everyone.", "success"); }
+            catch (err) { console.error(err); showToast("Update failed", "Couldn't write to the cloud.", "error"); }
+        };
+
+        /* ----- Add friend ----- */
+        window.openAddPlayerModal = function() {
+            if (friendsNames.length >= 20) { showToast("Limit reached", "You can add up to 20 people.", "error"); return; }
+            document.getElementById('add-player-name-input').value = '';
+            const m = document.getElementById('add-player-modal');
+            m.classList.remove('hidden');
+            setTimeout(() => { m.classList.remove('opacity-0'); m.querySelector('.bg-neutral-900').classList.remove('scale-95'); document.getElementById('add-player-name-input').focus(); }, 30);
+        };
+        window.closeAddPlayerModal = function() {
+            const m = document.getElementById('add-player-modal');
+            m.querySelector('.bg-neutral-900').classList.add('scale-95');
+            m.classList.add('opacity-0');
+            setTimeout(() => m.classList.add('hidden'), 200);
+        };
+        window.executeAddPlayer = async function(event) {
+            event.preventDefault();
+            const name = document.getElementById('add-player-name-input').value.trim();
+            if (!name) return;
+            friendsNames.push(name);
+            renderAll(); closeAddPlayerModal();
+            if (!db) { localStorage.setItem(`${appId}-names`, JSON.stringify(friendsNames)); showToast("Added", `${name} added on this device.`, "success"); return; }
+            try { await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'friends'), { names: friendsNames }); showToast("Added", `${name} added for everyone.`, "success"); }
+            catch (err) { console.error(err); showToast("Add failed", "Couldn't update the list.", "error"); }
+        };
+
+        /* ----- Remove ----- */
+        window.requestDeletePlayer = function(index) {
+            pendingDeleteIdx = index;
+            document.getElementById('confirm-delete-name').innerText = friendsNames[index];
+            const m = document.getElementById('custom-confirm-modal');
+            m.classList.remove('hidden');
+            setTimeout(() => { m.classList.remove('opacity-0'); m.querySelector('.bg-neutral-900').classList.remove('scale-95'); }, 30);
+        };
+        window.closeConfirmModal = function() {
+            const m = document.getElementById('custom-confirm-modal');
+            m.querySelector('.bg-neutral-900').classList.add('scale-95');
+            m.classList.add('opacity-0');
+            setTimeout(() => { m.classList.add('hidden'); pendingDeleteIdx = null; }, 200);
+        };
+        window.executeDeletePlayer = async function() {
+            if (pendingDeleteIdx === null) return;
+            const targetIdx = pendingDeleteIdx;
+            const deletedName = friendsNames[targetIdx];
+            const affectedDates = Object.keys(availabilityData);
+            friendsNames.splice(targetIdx, 1);
+
+            Object.keys(availabilityData).forEach(dateStr => {
+                const slots = availabilityData[dateStr] || {};
+                const shifted = {};
+                Object.keys(slots).forEach(k => {
+                    const idx = parseInt(k, 10);
+                    if (idx === targetIdx) return;
+                    shifted[String(idx > targetIdx ? idx - 1 : idx)] = slots[k];
+                });
+                if (Object.keys(shifted).length) availabilityData[dateStr] = shifted; else delete availabilityData[dateStr];
+            });
+
+            if (activeFriendIndex === targetIdx) activeFriendIndex = null;
+            else if (activeFriendIndex !== null && activeFriendIndex > targetIdx) activeFriendIndex -= 1;
+
+            renderAll(); closeConfirmModal();
+
+            if (!db) {
+                localStorage.setItem(`${appId}-names`, JSON.stringify(friendsNames));
+                localStorage.setItem(`${appId}-avails`, JSON.stringify(availabilityData));
+                showToast("Removed", `${deletedName} removed on this device.`, "success");
+                return;
+            }
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'settings', 'friends'), { names: friendsNames });
+                for (const dateStr of affectedDates) {
+                    const ref = doc(db, 'artifacts', appId, 'public', 'data', 'availabilities', dateStr);
+                    const slots = availabilityData[dateStr];
+                    if (slots && Object.keys(slots).length) await setDoc(ref, { date: dateStr, slots, updatedAt: new Date().toISOString() });
+                    else await deleteDoc(ref);
+                }
+                showToast("Removed", `${deletedName} and their times were cleared.`, "success");
+            } catch (err) { console.error(err); showToast("Sync issue", "Some cloud records may not have updated. Try refreshing.", "error"); }
+        };
+
+        /* ----- Toast ----- */
+        function showToast(title, msg, type = "info") {
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+            const id = 'toast-' + Math.random().toString(36).substring(2, 9);
+            let icon = 'fa-circle-info';
+            if (type === "success") icon = 'fa-circle-check';
+            else if (type === "warning") icon = 'fa-triangle-exclamation';
+            else if (type === "error") icon = 'fa-circle-xmark';
+            const iconColor = type === "error" ? 'text-red-500' : 'text-neutral-900';
+            container.insertAdjacentHTML('beforeend', `<div id="${id}" class="bg-white text-neutral-900 rounded-xl p-3.5 pointer-events-auto flex items-start gap-3 transition-all duration-300 transform translate-y-2 opacity-0 select-none shadow-lg"><i class="fa-solid ${icon} ${iconColor} text-sm mt-0.5"></i><div class="flex-1"><h5 class="text-xs font-bold">${title}</h5><p class="text-[11px] text-neutral-500 mt-0.5 leading-normal">${msg}</p></div><button onclick="document.getElementById('${id}').remove()" class="text-neutral-400 hover:text-neutral-900 transition"><i class="fa-solid fa-xmark text-xs"></i></button></div>`);
+            const el = document.getElementById(id);
+            setTimeout(() => { if (el) el.classList.remove('translate-y-2', 'opacity-0'); }, 40);
+            setTimeout(() => { if (el) { el.classList.add('opacity-0', 'translate-y-1'); setTimeout(() => el.remove(), 300); } }, 4000);
+        }
+        window.showToast = showToast;
+
+        window.onload = function() { initialize(); };
+    </script>
+</body>
+</html>
